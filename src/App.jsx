@@ -1,15 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
 
-const initialProducts = [
-  { id: 1, name: 'Nintendo Switch 本体', price: 29980, image: '/api/placeholder/150/150?text=Switch', tags: ['本体', 'ゲーム機'], status: '販売中' },
-  { id: 2, name: 'ゼルダの伝説', price: 6980, image: '/api/placeholder/150/150?text=Zelda', tags: ['新品', 'ゲームソフト'], status: '販売中' },
-  { id: 3, name: 'マリオカート8', price: 5980, image: '/api/placeholder/150/150?text=Mario', tags: ['ゲームソフト'], status: '売り切れ' },
-  { id: 4, name: 'Switch Lite', price: 19980, image: '/api/placeholder/150/150?text=SwitchLite', tags: ['本体', 'ゲーム機'], status: '販売中' },
-  { id: 5, name: 'スプラトゥーン3', price: 5980, image: '/api/placeholder/150/150?text=Splatoon', tags: ['新品', 'ゲームソフト'], status: '販売中' },
-];
+// Supabaseクライアントの初期化
+const supabaseUrl = 'https://jyvxfftmjsoeujwwvmxq.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5dnhmZnRtanNvZXVqd3d2bXhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjAxNjQ1MTIsImV4cCI6MjAzNTc0MDUxMn0.WNkj3AeLP--5Dxt2qmajGZ-KPgEchG9yk27HrB_dprg';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-function App() {
-  const [products] = useState(initialProducts);
+const App = () => {
+  const [products, setProducts] = useState([]);
   const [filters, setFilters] = useState({
     excludeKeywords: '',
     category: 'すべて',
@@ -20,16 +18,29 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState('おすすめ順');
   const [currentView, setCurrentView] = useState('list');
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState(null);
+  const [selectedTags, setSelectedTags] = useState([]);
 
-  const toggleTag = (tag: string) => {
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*');
+
+    if (error) console.error('Error fetching products:', error);
+    else setProducts(data);
+  };
+
+  const toggleTag = (tag) => {
     setSelectedTags((prev) => 
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     );
   };
 
-  const handleFilterChange = (key: string, value: any) => {
+  const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
@@ -70,7 +81,7 @@ function App() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
           {selectedTags.map((tag, index) => (
             <button key={index} onClick={() => toggleTag(tag)} style={{ backgroundColor: '#3B82F6', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '9999px', fontSize: '0.875rem' }}>
-              {tag} ×
+              {tag}
             </button>
           ))}
         </div>
@@ -110,8 +121,51 @@ function App() {
     </div>
   );
 
-  const ProductDetail = () => {
-    const product = products.find(p => p.id === selectedProductId);
+  const ProductDetail = ({ selectedProductId, setCurrentView }) => {
+    const [product, setProduct] = useState(null);
+    const [description, setDescription] = useState('');
+    const [isEditing, setIsEditing] = useState(false);
+
+    useEffect(() => {
+      const fetchProduct = async () => {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', selectedProductId)
+          .single();
+
+        if (error) {
+          console.error('Error fetching product:', error);
+        } else {
+          setProduct(data);
+          setDescription(data.description);
+        }
+      };
+      if (selectedProductId) {
+        fetchProduct();
+      }
+    }, [selectedProductId]);
+
+    const handleSave = async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .update({ description })
+        .eq('id', selectedProductId);
+
+      if (error) {
+        console.error('Error updating description:', error);
+      } else {
+        console.log(data, 'data');
+        setProduct({ ...product, description });
+        setIsEditing(false);
+      }
+    };
+
+    const handleCancel = () => {
+      setDescription(product.description);
+      setIsEditing(false);
+    };
+
     if (!product) return <div>商品が見つかりません。</div>;
 
     return (
@@ -132,6 +186,32 @@ function App() {
               </span>
             ))}
           </div>
+        </div>
+        <div style={{ marginBottom: '1rem' }}>
+          <h3 style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>説明:
+            <button onClick={() => setIsEditing(true)} style={{ marginLeft: '0.5rem', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', color: '#3B82F6' }}>
+              編集
+            </button>
+          </h3>
+          {isEditing ? (
+            <>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                style={{ width: '100%', padding: '0.5rem', borderRadius: '0.25rem', border: '1px solid #D1D5DB', marginBottom: '0.5rem' }}
+              />
+              <div>
+                <button onClick={handleSave} style={{ backgroundColor: '#3B82F6', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginRight: '0.5rem' }}>
+                  保存
+                </button>
+                <button onClick={handleCancel} style={{ backgroundColor: '#E5E7EB', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>
+                  キャンセル
+                </button>
+              </div>
+            </>
+          ) : (
+            <p>{description}</p>
+          )}
         </div>
       </div>
     );
@@ -219,7 +299,7 @@ function App() {
           </div>
         </aside>
 
-        {currentView === 'list' ? <ProductList /> : <ProductDetail />}
+        {currentView === 'list' ? <ProductList /> : <ProductDetail selectedProductId={selectedProductId} setCurrentView={setCurrentView} />}
       </main>
     </div>
   );
