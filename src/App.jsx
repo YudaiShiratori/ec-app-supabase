@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 // Supabaseクライアントの初期化
-const supabaseUrl = 'https://jyvxfftmjsoeujwwvmxq.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5dnhmZnRtanNvZXVqd3d2bXhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjAxNjQ1MTIsImV4cCI6MjAzNTc0MDUxMn0.WNkj3AeLP--5Dxt2qmajGZ-KPgEchG9yk27HrB_dprg';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const App = () => {
